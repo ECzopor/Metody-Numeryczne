@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moje testy</title>
+<style>
+:root{--bg:#ffeef5;--c:#fff;--t:#3b1f2b;--m:#a0728a;--a:#e0568f;--ok:#16a34a;--no:#dc2626;--b:#f5c6da}
+@media(prefers-color-scheme:dark){:root{--bg:#2a1620;--c:#3a1f2c;--t:#fbe8f1;--m:#d9a3bd;--a:#ff7eb6;--ok:#4ade80;--no:#f87171;--b:#5e3347}}
+body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--t)}
+main{max-width:760px;margin:0 auto;padding:16px}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+button,select,input,textarea{font:inherit;color:inherit;background:var(--c);border:1px solid var(--b);border-radius:8px;padding:8px 12px;box-sizing:border-box}
+textarea,input[type=text]{width:100%;margin:4px 0 10px}
+button{cursor:pointer}
+button.p{background:var(--a);color:#fff;border-color:var(--a)}
+nav button.on{border-color:var(--a);color:var(--a);font-weight:600}
+.card{background:var(--c);border:1px solid var(--b);border-radius:12px;padding:16px;margin-bottom:12px}
+.opt{display:block;width:100%;text-align:left;margin:8px 0}
+.opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,var(--c))}
+.opt.no{border-color:var(--no);background:color-mix(in srgb,var(--no) 16%,var(--c))}
+.m{color:var(--m);font-size:14px}
+.row{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--b);font-size:15px}
+.bad{color:var(--no)}.good{color:var(--ok)}
+h2{margin:0 0 10px;font-size:20px}summary{cursor:pointer;font-size:20px;font-weight:600;list-style:none}summary::before{content:'▸ ';color:var(--a)}details[open]>summary::before{content:'▾ '}details[open]>summary{margin-bottom:6px}summary .m{font-size:14px;font-weight:400}.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--a);background:color-mix(in srgb,var(--a) 14%,var(--c));border-radius:999px;padding:1px 9px;margin-left:6px;white-space:nowrap}.heart{text-align:center}.heart img{max-width:100%;max-height:70vh;border-radius:12px}h3{margin:14px 0 6px}
+</style></head>
+<body><main><div id="app"></div></main>
+<script src="pytania.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ld=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
+const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){alert('Nie mogę zapisać danych w przeglądarce. Użyj eksportu w zakładce Kopia.')}};
+let custom=ld('custom')||{}, stats=ld('stats')||{}, view='t', T=null;
+const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const key=(d,q)=>d+'|'+q[0];
+function bank(){const b={};
+ for(const d in BANK)b[d]=BANK[d].map(q=>({d,q,ci:-1}));
+ for(const d in custom)b[d]=(b[d]||[]).concat(custom[d].map((q,ci)=>({d,q,ci})));
+ return b}
+function go(v){view=v;render()}
+function render(){
+ const nav=[['t','Test'],['s','Statystyki'],['a','Dodaj pytanie'],['k','Kopia'],['h','♡']]
+  .map(([k,l])=>`<button class="${view==k?'on':''}" onclick="go('${k}')">${l}</button>`).join('');
+ $('#app').innerHTML=`<nav>${nav}</nav>`+({t:vTest,s:vStats,a:vAdd,k:vBackup,h:vHeart}[view])();
+}
+function vTest(){
+ if(!T){const b=bank();
+  return `<div class="card"><h2>Nowy mini test</h2>
+  <p>Dział<br><select id="d"><option value="*">Mieszany (wszystkie działy)</option>${Object.keys(b).map(d=>`<option value="${esc(d)}">${esc(d)} (${b[d].length})</option>`).join('')}</select></p>
+  <p>Liczba pytań<br><input id="n" type="number" min="1" value="10" style="width:90px"></p>
+  <p><label><input id="w" type="checkbox" checked> Najpierw pytania, które mi nie wychodzą</label></p>
+  <button class="p" onclick="start()">Start</button></div>`}
+ if(T.i>=T.qs.length){const ok=T.qs.length-T.wrong.length;
+  return `<div class="card"><h2>Wynik: ${ok} / ${T.qs.length}</h2>
+  ${T.wrong.length?`<h3>Do powtórki</h3>`+T.wrong.map(x=>`<div class="row"><div>${esc(x.q[0])}<br><span class="good">✓ ${esc(x.q[1])}</span></div></div>`).join(''):'<p>Bez błędów!</p>'}
+  <p>${T.wrong.length?`<button onclick="retry()">Powtórz błędne</button> `:''}<button class="p" onclick="T=null;render()">Nowy test</button></p></div>`}
+ const c=T.qs[T.i],L='ABCD';
+ return `<div class="card"><div class="m">${esc(c.d)} · pytanie ${T.i+1}/${T.qs.length}${c.q[5]?` <span class="tag">🏷 ${esc(c.q[5])}</span>`:''}</div>
+ <h2 style="margin-top:8px">${esc(c.q[0])}</h2>
+ ${c.opts.map((o,i)=>{let cl='';if(T.sel!==null){if(o.c)cl='ok';else if(i==T.sel)cl='no'}
+  return `<button class="opt ${cl}" onclick="ans(${i})"><b>${L[i]}.</b> ${esc(o.t)}</button>`}).join('')}
+ ${T.sel!==null?`<button class="p" onclick="T.i++;T.sel=null;render()">${T.i+1<T.qs.length?'Dalej':'Zobacz wynik'}</button> `:''}
+ <button onclick="if(confirm('Przerwać test?')){T=null;render()}">Przerwij</button></div>`}
+function mk(x){const q=x.q;return{d:x.d,q,opts:shuf([{t:q[1],c:true},...q.slice(2,5).map(t=>({t,c:false}))])}}
+function start(){
+ const d=$('#d').value,n=Math.max(1,+$('#n').value||10),weak=$('#w').checked,b=bank();
+ let pool=d=='*'?Object.values(b).flat():b[d];
+ pool=shuf(pool);
+ if(weak){const sc=x=>{const s=stats[key(x.d,x.q)];return s?(s.last=='w'?3:0)+s.w-s.r*.5:.5};
+  pool=pool.map(x=>[sc(x)+Math.random(),x]).sort((a,b)=>b[0]-a[0]).map(p=>p[1])}
+ T={qs:pool.slice(0,n).map(mk),i:0,sel:null,wrong:[]};render()}
+function ans(i){
+ if(T.sel!==null)return;T.sel=i;const c=T.qs[T.i],ok=c.opts[i].c,k=key(c.d,c.q);
+ const s=stats[k]||(stats[k]={r:0,w:0});ok?s.r++:s.w++;s.last=ok?'r':'w';sv('stats',stats);
+ if(!ok)T.wrong.push(c);render()}
+function retry(){T={qs:shuf(T.wrong).map(mk),i:0,sel:null,wrong:[]};render()}
+const OP={};
+function vHeart(){return `<div class="card heart"><img src="heart.png" alt="♡" onerror="this.outerHTML='<h2>♡ LOCK THE FUCK IN ♡</h2>'"><h2>♡ LOCK THE FUCK IN ♡</h2></div>`}
+function vStats(){const b=bank();
+ return Object.keys(b).map((d,di)=>{
+  const rows=b[d].map(x=>({x,s:stats[key(d,x.q)]}));
+  const weak=rows.filter(r=>r.s&&r.s.last=='w').length,seen=rows.filter(r=>r.s).length;
+  return `<details class="card" ${OP[di]?'open':''} ontoggle="OP[${di}]=this.open"><summary>${esc(d)} <span class="m">· pytań: ${rows.length} · ruszone: ${seen} · ostatnio źle: <span class="${weak?'bad':'good'}">${weak}</span></span></summary>`+
+  rows.map(r=>`<div class="row"><div>${r.s&&r.s.last=='w'?'<span class="bad">●</span>':r.s?'<span class="good">●</span>':'○'} ${esc(r.x.q[0])}${r.x.q[5]?` <span class="tag">🏷 ${esc(r.x.q[5])}</span>`:''}</div>
+  <div class="m" style="white-space:nowrap">${r.s?`✓${r.s.r} ✗${r.s.w}`:'—'} ${r.x.ci>=0?`<button onclick="delQ('${esc(d).replace(/'/g,"\\'")}',${r.x.ci})">usuń</button>`:''}</div></div>`).join('')+'</details>'}).join('')+
+ `<button onclick="if(confirm('Wyzerować całą historię wyników?')){stats={};sv('stats',stats);render()}">Wyzeruj statystyki</button>`}
+function delQ(d,i){if(!confirm('Usunąć to pytanie?'))return;custom[d].splice(i,1);if(!custom[d].length)delete custom[d];sv('custom',custom);render()}
+function vAdd(){const ds=Object.keys(bank());
+ return `<div class="card"><h2>Dodaj pytanie</h2>
+ <label>Dział (wybierz lub wpisz nowy)</label><input type="text" id="ad" list="dl"><datalist id="dl">${ds.map(d=>`<option value="${esc(d)}">`).join('')}</datalist>
+ <label>Pytanie</label><textarea id="aq" rows="3"></textarea>
+ <label class="good">Poprawna odpowiedź</label><input type="text" id="a1">
+ <label>Zła odpowiedź 1</label><input type="text" id="a2">
+ <label>Zła odpowiedź 2</label><input type="text" id="a3">
+ <label>Zła odpowiedź 3</label><input type="text" id="a4">
+ <button class="p" onclick="addQ()">Zapisz pytanie</button>
+ <p class="m">Pytania zapisują się w tej przeglądarce. Na stałe możesz je dopisać w pliku pytania.js.</p></div>`}
+function addQ(){
+ const g=i=>$('#'+i).value.trim(),d=g('ad'),q=[g('aq'),g('a1'),g('a2'),g('a3'),g('a4')];
+ if(!d||q.some(x=>!x))return alert('Wypełnij wszystkie pola.');
+ (custom[d]=custom[d]||[]).push(q);sv('custom',custom);alert('Dodano!');render()}
+function vBackup(){return `<div class="card"><h2>Kopia zapasowa</h2>
+ <p class="m">Wyniki i dodane pytania są w pamięci przeglądarki. Wyczyszczenie danych przeglądarki je usunie, więc od czasu do czasu zrób eksport.</p>
+ <button class="p" onclick="exp()">Eksportuj do pliku</button>
+ <p>Import: <input type="file" accept=".json" onchange="imp(this.files[0])"></p></div>`}
+function exp(){const a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([JSON.stringify({custom,stats})],{type:'application/json'}));
+ a.download='testy-kopia.json';a.click()}
+function imp(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{
+ const o=JSON.parse(r.result);custom=o.custom||{};stats=o.stats||{};sv('custom',custom);sv('stats',stats);alert('Zaimportowano.');render()}
+ catch(e){alert('Nieprawidłowy plik.')}};r.readAsText(f)}
+render();
+</script></body></html>
